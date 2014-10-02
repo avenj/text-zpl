@@ -36,15 +36,17 @@ sub _encode {
 
   my $str = '';
   
-  # FIXME name validation
   NODE: for my $key (keys %$ref) {
+    confess "$key is not a valid ZPL property name"
+      unless $key =~ $ValidName;
+
     $str .= ' ' x $indent;
     my $val = $ref->{$key};
 
     if (ref $val eq 'ARRAY') {
       for my $item (@$val) {
         $str .= ref $item ? 
-          _encode($item, $indent + 4) : "$key = $val\n";
+          _encode(+{ $key => $item }, $indent + 4) : "$key = $item\n";
       }
       next NODE
     }
