@@ -7,26 +7,34 @@ use Scalar::Util 'blessed', 'reftype';
 
 use Path::Tiny;
 
+
+use parent 'Exporter::Tiny';
+our @EXPORT = our @EXPORT_OK = qw/
+  encode_zpl
+  decode_zpl
+/;
+
+our $ValidName = qr/^[A-Za-z0-9\$\-_\@.&+\/]+$/;
+
+
 sub decode_zpl {
+  my ($str) = @_;
 
-}
+  my @lines = [ split /(?:\r?\n)|\r/, $str ];
 
-sub _parse_zpl_block {
-  my ($lines, $ref) = @_;
-  $ref ||= +{};
-  # FIXME
+  my $root = +{};
+  my $ref = $root;
+  LINE: while (@lines) {
+    my $line = shift @lines;
+  } # LINE
+
+  $root
 }
 
 sub encode_zpl {
-  my ($class, $obj) = @_;
-  unless (ref $obj eq 'HASH') {
-    if ($obj->can('TO_ZPL')) {
-      $obj = $obj->TO_ZPL
-    } else {
-      confess "Expected a HASH but got $obj"
-    }
-  }
-
+  my ($obj) = @_;
+  $obj = $obj->TO_ZPL if blessed $obj and $obj->can('TO_ZPL');
+  confess "Expected a HASH but got $obj" unless ref $obj eq 'HASH';
   _encode($obj)
 }
 
@@ -73,21 +81,6 @@ sub _encode {
   $str
 }
 
-
-sub from_file {
-  my ($class, $path) = @_;
-  confess "Expected a file path" unless defined $path;
-  $path = path($path) unless blessed $path and $path->isa('Path::Tiny');
-  confess "No such file ($path)" unless $path->exists;
-  $class->decode_zpl( $path->slurp_utf8 )
-}
-
-sub to_file {
-  my ($class, $path, $data) = @_;
-  confess "Expected a file path" unless defined $path;
-  $path = path($path) unless blessed $path and $path->isa('Path::Tiny');
-  $path->spew_utf8( $class->encode_zpl($data) )
-}
 
 
 1;
