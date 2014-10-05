@@ -44,33 +44,31 @@ sub decode_zpl {
     # Manage indentation-based hierarchy:
     if ($cur_indent > $level) {
       unless (defined $descended[ ($cur_indent / 4) - 1 ]) {
-        confess "Invalid ZPL (line $lineno); no matching parent section"
+        confess "Invalid ZPL (line $lineno); no matching parent section",
+          " [$line]"
       }
       $level = $cur_indent; 
     } elsif ($cur_indent < $level) {
-      my $wanted_idx = ( ($level - $cur_indent) / 4 ) - 1;
-      my $wanted_ref = $wanted_idx == 0 ? $root : $descended[$wanted_idx];
+      my $wanted_idx = ( ($level - $cur_indent) / 4 ) - 1 ;
+      my $wanted_ref = $descended[$wanted_idx];
       unless (defined $wanted_ref) {
         confess
           "BUG; cannot find matching parent section"
           ." [idx = $wanted_idx] [indent = $cur_indent]"
       }
       $ref = $wanted_ref;
-      my $startidx = $wanted_idx - 1;
-      @descended = $startidx < 0 ? () : @descended[$startidx .. $#descended];
+      my $startidx = $wanted_idx + 1;
+      @descended = @descended[$startidx .. $#descended];
       $level = $cur_indent;
     }
 
     # KV pair:
     if ( (my $sep_pos = index($line, '=')) > 0 ) {
-      warn "DEBUG kv pair, line is '$line'";
       my $key = substr $line, $level, ( $sep_pos - $level );
       $key =~ s/\s+$//;
       # FIXME verify key
       my $val = substr $line, $sep_pos + 1;
       $val =~ s/^\s+//;
-
-      warn "DEBUG key is '$key' val is '$val'";
 
       my $realval;
       my $vpos = 0;
@@ -79,14 +77,11 @@ sub decode_zpl {
       undef $maybe_q unless $maybe_q eq q{'} or $maybe_q eq q{"};
       if (defined $maybe_q) {
         # Quoted
-        warn "DEBUG found quoted value, quote is [$maybe_q]";
         if ((my $matching_q_pos = index $val, $maybe_q, 1) > 1) {
-          warn "DEBUG found matching quote";
           # Consume up to matching quote
           $realval = substr $val, 1, ($matching_q_pos - 1), '';
-          $val = '' if $val eq q{""};
+          $val = '' if $val eq $maybe_q x 2;
         } else {
-          warn "DEBUG no matching quote";
           # No matching quote
           my $maybe_trailing = index $val, ' ';
           $maybe_trailing = length $val unless $maybe_trailing > -1;
@@ -99,13 +94,12 @@ sub decode_zpl {
         $realval = substr $val, 0, $maybe_trailing, '';
       }
 
-      warn "DEBUG val is '$val' realval is '$realval'";
-
       # Should've thrown away usable pieces:
       $val =~ s/(?:\s+)|(?:#.*)//;
       if (length $val) {
         confess "Invalid ZPL (line $lineno); garbage at end-of-line '$val'"
       }
+      undef $val;
 
       if (exists $ref->{$key}) {
         if (ref $ref->{$key} eq 'HASH') {
@@ -114,10 +108,11 @@ sub decode_zpl {
         } elsif (ref $ref->{$key} eq 'ARRAY') {
           push @{ $ref->{$key} }, $realval
         } else {
-          $ref->{$key} = [ $ref->{$key}, $realval ]
+          my $oldval = $ref->{$key};
+          $ref->{$key} = [ $oldval, $realval ]
         }
       } else {
-        $ref->{$key} = $val
+        $ref->{$key} = $realval
       }
 
       next LINE
@@ -125,10 +120,9 @@ sub decode_zpl {
 
     # New subsection:
     if (my ($subsect) = $line =~ /^(?:\s+)?($ValidName)(?:#.+)?$/) {
-      warn "DEBUG creating new subsect '$subsect'";
       # FIXME confess if this matches an existing key
       my $new_ref = ($ref->{$subsect} = +{});
-      push @descended, $ref;
+      unshift @descended, $ref;
       $ref = $new_ref;
       next LINE
     }
