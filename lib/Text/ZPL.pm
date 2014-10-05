@@ -128,27 +128,7 @@ sub decode_zpl {
     }
 
     confess "Invalid ZPL (line $lineno); unrecognized syntax: '$line'"
-
-    # Check indent level
-    #   if $new_indent doesn't match $level,
-    #     if $new_indent less than $level:
-    #       $wanted_idx = ( ( ($level - $new_indent) / 4 ) - 1 )
-    #       $wanted_ref = $descended[ $wanted_idx ]
-    #       adjust $level = $new_indent
-    #       adjust @descended = @descended[ $wanted_idx .. $#descended ]
-    #     if $new_indent greater than $level:
-    #       $wanted_ref = $descended[ $new_indent ];
-    #       adjust $level = $new_indent
-    # If this looks like a subsection name,
-    #   add 
-
   } # LINE
-
-  # FIXME
-  # track descendants in @descended
-  #  if dropping indent, pop for every 4 spaces to get $current ref
-  #  ::_get_indent sub to find out?
-  #  
 
   $root
 }
@@ -172,52 +152,64 @@ sub encode_zpl {
   _encode($obj)
 }
 
+
 sub _encode {
   my ($ref, $indent) = @_;
-  $indent = 0 unless $indent;
+  $indent ||= 0;
+  my $str;
 
-  my $str = '';
-  
-  NODE: for my $key (keys %$ref) {
+  # FIXME quoting behavior
+  KEY: for my $key (keys %$ref) {
     confess "$key is not a valid ZPL property name"
       unless $key =~ qr/^$ValidName$/;
-
-    $str .= ' ' x $indent;
-
     my $val = $ref->{$key};
-
     if (ref $val eq 'ARRAY') {
-      for my $item (@$val) {
-        $str .= ref $item ? 
-            _encode(+{ $key => $item }, $indent + 4) 
-          : "$key = $item\n";
-      }
-      next NODE
+      $str .= _encode_array($key, $val, $indent);
+      next KEY
     }
-
     if (ref $val eq 'HASH') {
+      $str .= ' ' x $indent;
       $str .= "$key\n";
       $str .= _encode($val, $indent + 4);
-      next NODE
+      next KEY
     }
-
     if (blessed $val && $val->can('TO_ZPL')) {
-      my $realobj = $val->TO_ZPL;
-      $str .= _encode($realobj, $indent + 4);
-      next NODE
+      $val = $val->TO_ZPL;
+      redo KEY
     }
-
     if (ref $val) {
-      confess "Do not know how to handle object '$val'"
+      confess "Do not know how to handle '$val'"
     }
-
-    $str .= "$key = $val\n"
-  } # NODE
+    $str .= ' ' x $indent;
+    $str .= "$key = " . _maybe_quote($val) . "\n";
+  }
 
   $str
 }
 
+sub _encode_array {
+  my ($key, $ref, $indent) = @_;
+  my $str;
+  for my $item (@$ref) {
+    confess "ZPL does not support structures of this type in lists: ".ref $item
+      if ref $item;
+    $str .= ' ' x $indent;
+    $str .= "$key = " . _maybe_quote($item) . "\n";
+  }
+  $str
+}
 
+sub _maybe_quote {
+  my ($val) = @_;
+  return qq{'$val'}
+    if index($val, q{"}) > -1
+    and index($val, q{'}) == -1;
+  return qq{"$val"}
+    if index($val, ' ')  > -1
+    or index($val, '#')  > -1
+    or index($val, q{'}) > -1 and index($val, q{"}) == -1;
+  $val
+}
 
 1;
 

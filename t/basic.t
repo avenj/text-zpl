@@ -10,7 +10,6 @@ use Text::ZPL;
 my $basic = path("t/inc/basic.zpl")->slurp;
 
 my $data = decode_zpl($basic);
-use Data::Dumper; print Dumper $data;
 is_deeply $data,
   +{
     toplevel  => 123,
@@ -48,6 +47,7 @@ is_deeply $data,
   };
 
 my $reencoded = encode_zpl $data;
+warn $reencoded;
 my $roundtripped = decode_zpl $reencoded;
 is_deeply $roundtripped, $data, 'roundtripped ok';
 
