@@ -69,21 +69,13 @@ sub decode_zpl {
 
       my $maybe_q = substr $tmpval, 0, 1;
       undef $maybe_q unless $maybe_q eq q{'} or $maybe_q eq q{"};
-      if (defined $maybe_q) {
-        # Quoted
-        if ((my $matching_q_pos = index $tmpval, $maybe_q, 1) > 1) {
-          # Consume up to matching quote
-          $realval = substr $tmpval, 1, ($matching_q_pos - 1), '';
-          substr $tmpval, 0, 2, ''
-            if substr($tmpval, 0, 2) eq $maybe_q x 2;
-        } else {
-          # No matching quote
-          my $maybe_trailing = index $tmpval, ' ';
-          $maybe_trailing = length $tmpval unless $maybe_trailing > -1;
-          $realval = substr $tmpval, 0, $maybe_trailing, '';
-        }
+      if ( defined $maybe_q 
+        && (my $matching_q_pos = index $tmpval, $maybe_q, 1) > 1 ) {
+        # Quoted, consume up to matching and clean up tmpval
+        $realval = substr $tmpval, 1, ($matching_q_pos - 1), '';
+        substr $tmpval, 0, 2, '' if substr($tmpval, 0, 2) eq $maybe_q x 2;
       } else {
-        # Unquoted
+        # Unquoted or mismatched quotes
         my $maybe_trailing = index $tmpval, ' ';
         $maybe_trailing = length $tmpval unless $maybe_trailing > -1;
         $realval = substr $tmpval, 0, $maybe_trailing, '';
@@ -94,7 +86,6 @@ sub decode_zpl {
       if (length $tmpval) {
         confess "Invalid ZPL (line $lineno); garbage at end-of-line '$tmpval'"
       }
-      undef $tmpval;
 
       if (exists $ref->{$key}) {
         if (ref $ref->{$key} eq 'HASH') {
