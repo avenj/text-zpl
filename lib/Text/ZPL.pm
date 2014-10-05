@@ -5,9 +5,6 @@ use strictures 1;
 
 use Scalar::Util 'blessed', 'reftype';
 
-use Path::Tiny;
-
-
 use parent 'Exporter::Tiny';
 our @EXPORT = our @EXPORT_OK = qw/
   encode_zpl
@@ -16,7 +13,6 @@ our @EXPORT = our @EXPORT_OK = qw/
 
 # note: not anchored as-is:
 our $ValidName = qr/[A-Za-z0-9\$\-_\@.&+\/]+/;
-
 
 sub decode_zpl {
   my ($str) = @_;
@@ -32,16 +28,12 @@ sub decode_zpl {
 
   LINE: for my $line (@lines) {
     ++$lineno;
-
-    # Trim trailing WS:
+    # Trim trailing WS + skip blank/comments-only:
     $line =~ s/\s+$//;
-
-    # Skip blank after trim, comments-only
     next LINE if length($line) == 0 or $line =~ /^(?:\s+)?#/;
 
-    my $cur_indent = __get_indent($lineno, $line);
-    
     # Manage indentation-based hierarchy:
+    my $cur_indent = __get_indent($lineno, $line);
     if ($cur_indent > $level) {
       unless (defined $descended[ ($cur_indent / 4) - 1 ]) {
         confess "Invalid ZPL (line $lineno); no matching parent section",
@@ -71,41 +63,38 @@ sub decode_zpl {
                 ."'$key' is not a valid ZPL property name"
       }
 
-      my $val = substr $line, $sep_pos + 1;
-      $val =~ s/^\s+//;
-
       my $realval;
-      my $vpos = 0;
+      my $tmpval = substr $line, $sep_pos + 1;
+      $tmpval =~ s/^\s+//;
 
-      my $maybe_q = substr $val, 0, 1;
+      my $maybe_q = substr $tmpval, 0, 1;
       undef $maybe_q unless $maybe_q eq q{'} or $maybe_q eq q{"};
       if (defined $maybe_q) {
         # Quoted
-        if ((my $matching_q_pos = index $val, $maybe_q, 1) > 1) {
+        if ((my $matching_q_pos = index $tmpval, $maybe_q, 1) > 1) {
           # Consume up to matching quote
-          $realval = substr $val, 1, ($matching_q_pos - 1), '';
-          substr $val, 0, 2, ''
-            if substr($val, 0, 2) eq $maybe_q x 2;
+          $realval = substr $tmpval, 1, ($matching_q_pos - 1), '';
+          substr $tmpval, 0, 2, ''
+            if substr($tmpval, 0, 2) eq $maybe_q x 2;
         } else {
           # No matching quote
-          my $maybe_trailing = index $val, ' ';
-          $maybe_trailing = length $val unless $maybe_trailing > -1;
-          $realval = substr $val, 0, $maybe_trailing, '';
+          my $maybe_trailing = index $tmpval, ' ';
+          $maybe_trailing = length $tmpval unless $maybe_trailing > -1;
+          $realval = substr $tmpval, 0, $maybe_trailing, '';
         }
       } else {
         # Unquoted
-        my $maybe_trailing = index $val, ' ';
-        $maybe_trailing = length $val unless $maybe_trailing > -1;
-        $realval = substr $val, 0, $maybe_trailing, '';
+        my $maybe_trailing = index $tmpval, ' ';
+        $maybe_trailing = length $tmpval unless $maybe_trailing > -1;
+        $realval = substr $tmpval, 0, $maybe_trailing, '';
       }
 
-      $val =~ s/#.*$//;
-      $val =~ s/\s+//;
+      $tmpval =~ s/#.*$//; $tmpval =~ s/\s+//;
       # Should've thrown away usable pieces by now:
-      if (length $val) {
-        confess "Invalid ZPL (line $lineno); garbage at end-of-line '$val'"
+      if (length $tmpval) {
+        confess "Invalid ZPL (line $lineno); garbage at end-of-line '$tmpval'"
       }
-      undef $val;
+      undef $tmpval;
 
       if (exists $ref->{$key}) {
         if (ref $ref->{$key} eq 'HASH') {
@@ -221,4 +210,42 @@ sub _maybe_quote {
 
 1;
 
-# vim: ts=2 sw=2 et sts=2 ft=perl
+=pod
+
+=head1 NAME
+
+Text::ZPL - Encode and decode ZeroMQ Property Language
+
+=head1 SYNOPSIS
+
+  # Decode ZPL to a HASH:
+  my $data = decode_zpl( $zpl_text );
+  # Encode a HASH to ZPL text:
+  my $zpl = encode_zpl( $data );
+
+=head1 DESCRIPTION
+
+An implementation of the C<ZeroMQ Property Language>; see
+L<http://rfc.zeromq.org/spec:4> for details.
+
+=head2 decode_zpl
+
+Given a string of C<ZPL>-encoded text, returns an appropriate Perl C<HASH>; an
+exception is thrown if invalid input is encountered.
+
+=head2 encode_zpl
+
+Given a Perl C<HASH>, returns an appropriate C<ZPL>-encoded text string; an
+exception is thrown if the data given cannot be represented in C<ZPL> (see
+L</CAVEATS>).
+
+=head2 CAVEATS
+
+Not all Perl data structures can be represented in ZPL; specifically,
+deeply-nested items in an C<ARRAY> will throw an exception.
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
+
+=cut
