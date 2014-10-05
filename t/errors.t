@@ -45,13 +45,21 @@ eval {; decode_zpl($zpl) };
 like $@, qr/indent/, 'invalid indent level dies';
 
 # bad indent (no parent)
-$zpl = <<'NOPARENT';
+$zpl = <<'NOPARENT_RIGHT';
 foo
     bar = 1
         baz = 2
-NOPARENT
+NOPARENT_RIGHT
 eval {; decode_zpl($zpl) };
-like $@, qr/parent/, 'missing parent dies';
+like $@, qr/parent/, 'missing parent dies (1)';
+
+$zpl = <<'NOPARENT_LEFT';
+foo
+        bar
+        baz = 1
+NOPARENT_LEFT
+eval {; decode_zpl($zpl) };
+like $@, qr/parent/, 'missing parent dies (2)';
 
 # garbage on line
 $zpl = <<'TRAILING';
