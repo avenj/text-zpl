@@ -1,8 +1,8 @@
 package Text::ZPL;
 
-use Carp;
-use strictures 1;
+use strict; use warnings FATAL => 'all';
 
+use Carp;
 use Scalar::Util 'blessed', 'reftype';
 
 use parent 'Exporter::Tiny';
