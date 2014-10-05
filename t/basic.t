@@ -60,6 +60,16 @@ is_deeply $mixed_decoded,
   },
   'mixed newlines ok';
 
+my $with_empty_arrayref = +{
+  foo => [],
+};
+my $empty_arrayref_rtrip = decode_zpl( encode_zpl $with_empty_arrayref );
+is_deeply $empty_arrayref_rtrip,
+  +{ },
+  'empty arrayref skipped ok';
+
+# FIXME tests for encoding w/ various types of whitespace/specials in values
+
 done_testing;
 
 __DATA__
