@@ -11,6 +11,8 @@ our @EXPORT = our @EXPORT_OK = qw/
   decode_zpl
 /;
 
+# FIXME streaming interface?
+
 # note: not anchored as-is:
 our $ValidName = qr/[A-Za-z0-9\$\-_\@.&+\/]+/;
 
@@ -69,6 +71,7 @@ sub decode_zpl {
 
       my $maybe_q = substr $tmpval, 0, 1;
       undef $maybe_q unless $maybe_q eq q{'} or $maybe_q eq q{"};
+
       if ( defined $maybe_q 
         && (my $matching_q_pos = index $tmpval, $maybe_q, 1) > 1 ) {
         # Quoted, consume up to matching and clean up tmpval
@@ -220,8 +223,8 @@ Text::ZPL - Encode and decode ZeroMQ Property Language
 
 =head1 DESCRIPTION
 
-An implementation of the C<ZeroMQ Property Language>; see
-L<http://rfc.zeromq.org/spec:4> for details.
+An implementation of the C<ZeroMQ Property Language>, a simple configuration
+file format; see L<http://rfc.zeromq.org/spec:4> for details.
 
 =head2 decode_zpl
 
@@ -237,7 +240,21 @@ L</CAVEATS>).
 =head2 CAVEATS
 
 Not all Perl data structures can be represented in ZPL; specifically,
-deeply-nested items in an C<ARRAY> will throw an exception.
+deeply-nested structures in an C<ARRAY> will throw an exception:
+
+  # Simple list is OK:
+  encode_zpl(+{ list => [ 1 .. 3 ] });
+  #  -> list: 1
+  #     list: 2
+  #     list: 3
+  # Deeply nested is not representable:
+  encode_zpl(+{
+    list => [
+      'abc',
+      list2 => [1 .. 3]
+    ],
+  });
+  #  -> dies
 
 =head1 AUTHOR
 
