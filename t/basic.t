@@ -52,6 +52,14 @@ my $roundtripped = decode_zpl $reencoded;
 is_deeply $roundtripped, $data, 'roundtripped ok';
 
 
+my $mixed_newlines = "foo=1\015\012bar=2\012baz=3\015quux=weeble\n";
+my $mixed_decoded  = decode_zpl $mixed_newlines;
+is_deeply $mixed_decoded,
+  +{
+    foo => 1, bar => 2, baz => 3, quux => 'weeble'
+  },
+  'mixed newlines ok';
+
 done_testing;
 
 __DATA__
