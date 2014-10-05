@@ -223,8 +223,39 @@ Text::ZPL - Encode and decode ZeroMQ Property Language
 
 =head1 DESCRIPTION
 
-An implementation of the C<ZeroMQ Property Language>, a simple configuration
-file format; see L<http://rfc.zeromq.org/spec:4> for details.
+An implementation of the C<ZeroMQ Property Language>, a simple ASCII
+configuration file format; see L<http://rfc.zeromq.org/spec:4> for details.
+
+As a simple example, a C<ZPL> file as such:
+
+  # This is my conf.
+  # There are many like it, but this one is mine.
+  confname = "My Config"
+
+  context
+      iothreads = 1
+
+  main
+      publisher
+          bind = tcp://eth0:5550
+          bind = tcp://eth0:5551
+      subscriber
+          connect = tcp://192.168.0.10:5555
+
+... results in a structure like:
+
+  {
+    confname => "My Config",
+    context => { iothreads => '1' },
+    main => {
+      subscriber => {
+        connect => 'tcp://192.168.0.10:5555'
+      },
+      publisher => {
+        bind => [ 'tcp://eth0:5550', 'tcp://eth0:5551' ]
+      }
+    }
+  }
 
 =head2 decode_zpl
 
@@ -236,6 +267,17 @@ exception is thrown if invalid input is encountered.
 Given a Perl C<HASH>, returns an appropriate C<ZPL>-encoded text string; an
 exception is thrown if the data given cannot be represented in C<ZPL> (see
 L</CAVEATS>).
+
+=head3 TO_ZPL
+
+A blessed object can provide a B<TO_ZPL> method that will supply a plain
+C<HASH> or C<ARRAY> (but see L</CAVEATS>) to the encoder:
+
+  # Shallow-clone our backing hash, for example:
+  sub TO_ZPL {
+    my $self = shift;
+    +{ %$self }
+  }
 
 =head2 CAVEATS
 
