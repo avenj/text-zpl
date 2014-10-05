@@ -129,7 +129,9 @@ sub decode_zpl {
       next LINE
     }
 
-    confess "Invalid ZPL (line $lineno); unrecognized syntax: '$line'"
+    confess
+       "Invalid ZPL (line $lineno); "
+      ."unrecognized syntax or bad section name: '$line'"
   } # LINE
 
   $root
@@ -142,7 +144,6 @@ sub encode_zpl {
   confess "Expected a HASH but got $obj" unless ref $obj eq 'HASH';
   _encode($obj)
 }
-
 
 sub _encode {
   my ($ref, $indent) = @_;
