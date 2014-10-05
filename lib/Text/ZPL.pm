@@ -150,23 +150,27 @@ sub _encode {
     confess "$key is not a valid ZPL property name"
       unless $key =~ qr/^$ValidName$/;
     my $val = $ref->{$key};
+    
+    if (blessed $val && $val->can('TO_ZPL')) {
+      $val = $val->TO_ZPL;
+    }
+
     if (ref $val eq 'ARRAY') {
       $str .= _encode_array($key, $val, $indent);
       next KEY
     }
+
     if (ref $val eq 'HASH') {
       $str .= ' ' x $indent;
       $str .= "$key\n";
       $str .= _encode($val, $indent + 4);
       next KEY
     }
-    if (blessed $val && $val->can('TO_ZPL')) {
-      $val = $val->TO_ZPL;
-      redo KEY
-    }
+    
     if (ref $val) {
       confess "Do not know how to handle '$val'"
     }
+
     $str .= ' ' x $indent;
     $str .= "$key = " . _maybe_quote($val) . "\n";
   }
