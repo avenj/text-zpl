@@ -36,7 +36,11 @@ sub decode_zpl {
 
     # Manage indentation-based hierarchy:
     my $cur_indent = __get_indent($lineno, $line);
-    if ($cur_indent > $level) {
+    if ($cur_indent == 0) {
+      $ref = $root;
+      @descended = ();
+      $level = 0;
+    } elsif ($cur_indent > $level) {
       unless (defined $descended[ ($cur_indent / 4) - 1 ]) {
         confess "Invalid ZPL (line $lineno); no matching parent section",
           " [$line]"
@@ -147,7 +151,7 @@ sub encode_zpl {
 sub _encode {
   my ($ref, $indent) = @_;
   $indent ||= 0;
-  my $str;
+  my $str = '';
 
   KEY: for my $key (keys %$ref) {
     confess "$key is not a valid ZPL property name"
