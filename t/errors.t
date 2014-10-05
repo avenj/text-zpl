@@ -53,4 +53,32 @@ NOPARENT
 eval {; decode_zpl($zpl) };
 like $@, qr/parent/, 'missing parent dies';
 
+# garbage on line
+$zpl = <<'TRAILING';
+foo
+    bar = 123 456
+TRAILING
+eval {; decode_zpl($zpl) };
+like $@, qr/end-of-line/, 'trailing garbage dies';
+
+# key conflicts with existing subsect
+$zpl = <<'SECTEXISTS';
+foo
+    bar = 1
+    baz = 2
+foo = 2
+SECTEXISTS
+eval {; decode_zpl($zpl) };
+like $@, qr/existing.subsection/, 'key conflict dies';
+
+# subsect conflicts with existing key
+$zpl = <<'KEYEXISTS';
+foo = 2
+bar = 3
+foo
+    baz = 1
+KEYEXISTS
+eval {; decode_zpl($zpl) };
+like $@, qr/existing.property/, 'subsection conflict dies';
+
 done_testing
