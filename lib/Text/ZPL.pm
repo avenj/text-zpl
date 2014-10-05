@@ -66,7 +66,11 @@ sub decode_zpl {
     if ( (my $sep_pos = index($line, '=')) > 0 ) {
       my $key = substr $line, $level, ( $sep_pos - $level );
       $key =~ s/\s+$//;
-      # FIXME verify key
+      unless ($key =~ /^$ValidName$/) {
+        confess "Invalid ZPL (line $lineno); "
+                ."'$key' is not a valid ZPL property name"
+      }
+
       my $val = substr $line, $sep_pos + 1;
       $val =~ s/^\s+//;
 
@@ -80,7 +84,8 @@ sub decode_zpl {
         if ((my $matching_q_pos = index $val, $maybe_q, 1) > 1) {
           # Consume up to matching quote
           $realval = substr $val, 1, ($matching_q_pos - 1), '';
-          $val = '' if $val eq $maybe_q x 2;
+          substr $val, 0, 2, ''
+            if substr($val, 0, 2) eq $maybe_q x 2;
         } else {
           # No matching quote
           my $maybe_trailing = index $val, ' ';
@@ -94,8 +99,9 @@ sub decode_zpl {
         $realval = substr $val, 0, $maybe_trailing, '';
       }
 
-      # Should've thrown away usable pieces:
-      $val =~ s/(?:\s+)|(?:#.*)//;
+      $val =~ s/#.*$//;
+      $val =~ s/\s+//;
+      # Should've thrown away usable pieces by now:
       if (length $val) {
         confess "Invalid ZPL (line $lineno); garbage at end-of-line '$val'"
       }
@@ -104,7 +110,7 @@ sub decode_zpl {
       if (exists $ref->{$key}) {
         if (ref $ref->{$key} eq 'HASH') {
           confess
-            "Invalid ZPL (line $lineno); existing subsection with this  name"
+            "Invalid ZPL (line $lineno); existing subsection with this name"
         } elsif (ref $ref->{$key} eq 'ARRAY') {
           push @{ $ref->{$key} }, $realval
         } else {
@@ -119,8 +125,10 @@ sub decode_zpl {
     }
 
     # New subsection:
-    if (my ($subsect) = $line =~ /^(?:\s+)?($ValidName)(?:#.+)?$/) {
-      # FIXME confess if this matches an existing key
+    if (my ($subsect) = $line =~ /^(?:\s+)?($ValidName)(?:\s+?#.*)?$/) {
+      if (exists $ref->{$subsect}) {
+        confess "Invalid ZPL (line $lineno); existing property with this name"
+      }
       my $new_ref = ($ref->{$subsect} = +{});
       unshift @descended, $ref;
       $ref = $new_ref;
@@ -158,7 +166,6 @@ sub _encode {
   $indent ||= 0;
   my $str;
 
-  # FIXME quoting behavior
   KEY: for my $key (keys %$ref) {
     confess "$key is not a valid ZPL property name"
       unless $key =~ qr/^$ValidName$/;
@@ -205,6 +212,7 @@ sub _maybe_quote {
     if index($val, q{"}) > -1
     and index($val, q{'}) == -1;
   return qq{"$val"}
+    # FIXME ? doesn't handle tabs:
     if index($val, ' ')  > -1
     or index($val, '#')  > -1
     or index($val, q{'}) > -1 and index($val, q{"}) == -1;

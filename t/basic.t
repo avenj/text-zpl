@@ -44,10 +44,11 @@ is_deeply $data,
         list2 => [ 123, 456 ],
       },
     },
-  };
+  },
+  'decode_zpl ok';
 
 my $reencoded = encode_zpl $data;
-warn $reencoded;
+
 my $roundtripped = decode_zpl $reencoded;
 is_deeply $roundtripped, $data, 'roundtripped ok';
 

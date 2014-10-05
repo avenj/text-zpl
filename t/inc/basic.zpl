@@ -1,12 +1,14 @@
 toplevel = 123
 quoted   = "foo bar"
 unmatched = "foo'
+# There's a comment here
+# and here
 
-context
-    iothreads = 1
-    verbose   = 1
+context #
+    iothreads = 1   # With trailing comment
+    verbose   = 1 #
 
-main
+main                # Section head with trailing comment
     type = zmq_queue
     frontend
         option
@@ -19,7 +21,7 @@ main
 
 other
     list = "foo bar"
-    list = 'baz quux'
+    list = 'baz quux'  #
     list = weeble
     deeper
         list2 = 123
