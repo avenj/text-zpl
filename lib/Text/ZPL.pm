@@ -35,7 +35,14 @@ sub decode_zpl {
     next LINE if length($line) == 0 or $line =~ /^(?:\s+)?#/;
 
     # Manage indentation-based hierarchy:
-    my $cur_indent = __get_indent($lineno, $line);
+    my $cur_indent = 0;
+    $cur_indent++ while substr($line, $cur_indent, 1) eq ' ';
+    if ($cur_indent % 4) {
+      confess
+         "Invalid ZPL (line $lineno); "
+        ."expected 4-space indent, indent is $cur_indent"
+    }
+
     if ($cur_indent == 0) {
       $ref = $root;
       @descended = ();
@@ -126,17 +133,6 @@ sub decode_zpl {
   } # LINE
 
   $root
-}
-
-sub __get_indent {
-  my ($lineno, $line) = @_;
-  my $pos = 0;
-  $pos++ while substr($line, $pos, 1) eq ' ';
-  if ($pos % 4) {
-    confess
-      "Invalid ZPL (line $lineno); expected 4-space indent, indent is $pos"
-  }
-  $pos
 }
 
 
