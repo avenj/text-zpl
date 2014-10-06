@@ -32,7 +32,9 @@ sub _trim_leading_ws {
 
 sub decode_zpl {
   my ($str) = @_;
-  my @lines = split /(?:\r?\n)|\r/, $str;
+
+  confess "Expected a ZPL text string but received no arguments"
+    unless defined $str;
 
   my $root = +{};
   my $ref  = $root;
@@ -40,7 +42,7 @@ sub decode_zpl {
 
   my ($level, $lineno) = (0,0);
 
-  LINE: for my $line (@lines) {
+  LINE: for my $line (split /(?:\r?\n)|\r/, $str) {
     ++$lineno;
     # Prep string in-place & skip blank/comments-only:
     next LINE unless _decode_prepare_line($line);
@@ -114,7 +116,7 @@ sub _decode_add_subsection_ref {
   if (exists $_[1]->{ $_[2] }) {
     confess "Invalid ZPL (line $_[0]); existing property with this name"
   }
-  my $new_ref = ($_[1]->{ $_[2] } = +{});
+  my $new_ref = $_[1]->{ $_[2] } = +{};
   unshift @{ $_[3] }, $_[1];
   $new_ref
 }
@@ -130,10 +132,9 @@ sub _decode_parse_kv {
             ."'$key' is not a valid ZPL property name"
   }
 
-  my $realval;
   my $tmpval = substr $_[1], $_[3] + 1;
   _trim_leading_ws($tmpval);
-
+  my $realval;
   my $maybe_q = substr $tmpval, 0, 1;
   if ( ($maybe_q eq q{'} || $maybe_q eq q{"}) 
     && (my $matching_q_pos = index $tmpval, $maybe_q, 1) > 1 ) {
