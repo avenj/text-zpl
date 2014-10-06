@@ -85,27 +85,26 @@ sub decode_zpl {
 }
 
 sub _decode_add_subsection_ref {
-  my ($lineno, $ref, $subsect, $tree_ref) = @_;
-  if (exists $ref->{$subsect}) {
-    confess "Invalid ZPL (line $lineno); existing property with this name"
+  # ($lineno, $ref, $subsect, \@descended)
+  if (exists $_[1]->{ $_[2] }) {
+    confess "Invalid ZPL (line $_[0]); existing property with this name"
   }
-  my $new_ref = ($ref->{$subsect} = +{});
-  unshift @$tree_ref, $ref;
+  my $new_ref = ($_[1]->{ $_[2] } = +{});
+  unshift @{ $_[3] }, $_[1];
   $new_ref
 }
 
 sub _decode_parse_kv {
-  my ($lineno, $line, $level, $sep_pos) = @_;
-
-  my $key = substr $line, $level, ( $sep_pos - $level );
+  # ($lineno, $line, $level, $sep_pos)
+  my $key = substr $_[1], $_[2], ( $_[3] - $_[2] );
   $key =~ s/\s+$//;
   unless ($key =~ /^$ValidName$/) {
-    confess "Invalid ZPL (line $lineno); "
+    confess "Invalid ZPL (line $_[0]); "
             ."'$key' is not a valid ZPL property name"
   }
 
   my $realval;
-  my $tmpval = substr $line, $sep_pos + 1;
+  my $tmpval = substr $_[1], $_[3] + 1;
   $tmpval =~ s/^\s+//;
 
   my $maybe_q = substr $tmpval, 0, 1;
@@ -124,26 +123,26 @@ sub _decode_parse_kv {
   $tmpval =~ s/#.*$//;
   $tmpval =~ s/\s+//;
   if (length $tmpval) {
-    confess "Invalid ZPL (line $lineno); garbage at end-of-line: '$tmpval'"
+    confess "Invalid ZPL (line $_[0]); garbage at end-of-line: '$tmpval'"
   }
 
   ($key, $realval)
 }
 
 sub _decode_add_kv {
-  my ($lineno, $ref, $key, $val) = @_;
-  if (exists $ref->{$key}) {
-    if (ref $ref->{$key} eq 'HASH') {
+  # ($lineno, $ref, $key, $val)
+  if (exists $_[1]->{ $_[2] }) {
+    if (ref $_[1]->{ $_[2] } eq 'HASH') {
       confess
-        "Invalid ZPL (line $lineno); existing subsection with this name"
-    } elsif (ref $ref->{$key} eq 'ARRAY') {
-      push @{ $ref->{$key} }, $val
+        "Invalid ZPL (line $_[0]); existing subsection with this name"
+    } elsif (ref $_[1]->{ $_[2] } eq 'ARRAY') {
+      push @{ $_[1]->{ $_[2] } }, $_[3]
     } else {
-      $ref->{$key} = [ $ref->{$key}, $val ]
+      $_[1]->{ $_[2] } = [ $_[1]->{ $_[2] }, $_[3] ]
     }
     return
   }
-  $ref->{$key} = $val
+  $_[1]->{ $_[2] } = $_[3]
 }
 
 
