@@ -45,11 +45,8 @@ sub decode_zpl {
     # Prep string in-place & skip blank/comments-only:
     next LINE unless _decode_prepare_line($line);
 
-    my ($new_ref, $new_lev) = _decode_handle_level(
-      $lineno, $line, $root, $ref, $level, \@descended
-    );
-    $ref   = $new_ref if defined $new_ref;
-    $level = $new_lev if defined $new_lev;
+    # Manage structure:
+    _decode_handle_level($lineno, $line, $root, $ref, $level, \@descended);
 
     # KV pair:
     if ( (my $sep_pos = index($line, '=')) > 0 ) {
@@ -79,40 +76,37 @@ sub _decode_prepare_line {
 }
 
 sub _decode_handle_level {
-  # Returns ($ref, $newlevel)
-  #   returns undef in either position for no change
-  my ($lineno, $line, $root, $ref, $level, $tree_ref) = @_;
+  # ($lineno, $line, $root, $ref, $level, $tree_ref)
 
   my $cur_indent = 0;
-  $cur_indent++ while substr($line, $cur_indent, 1) eq ' ';
+  $cur_indent++ while substr($_[1], $cur_indent, 1) eq ' ';
   if ($cur_indent % 4) {
     confess
-       "Invalid ZPL (line $lineno); "
+       "Invalid ZPL (line $_[0]); "
       ."expected 4-space indent, indent is $cur_indent"
   }
 
   if ($cur_indent == 0) {
-    @$tree_ref = ();
-    return ($root, $cur_indent)
-  } elsif ($cur_indent > $level) {
-    unless (defined $tree_ref->[ ($cur_indent / 4) - 1 ]) {
-      confess "Invalid ZPL (line $lineno); no matching parent section",
-        " [$line]"
+    $_[3] = $_[2];
+    $_[4] = $cur_indent;
+    @{ $_[5] } = ();
+  } elsif ($cur_indent > $_[4]) {
+    unless (defined $_[5]->[ ($cur_indent / 4) - 1 ]) {
+      confess "Invalid ZPL (line $_[0]); no matching parent section"
     }
-    return (undef, $cur_indent)
-  } elsif ($cur_indent < $level) {
-    my $wanted_idx = ( ($level - $cur_indent) / 4 ) - 1 ;
-    my $wanted_ref = $tree_ref->[$wanted_idx];
+    $_[4] = $cur_indent;
+  } elsif ($cur_indent < $_[4]) {
+    my $wanted_idx = ( ($_[4] - $cur_indent) / 4 ) - 1 ;
+    my $wanted_ref = $_[5]->[$wanted_idx];
     unless (defined $wanted_ref) {
       confess
         "BUG; cannot find matching parent section"
         ." [idx = $wanted_idx] [indent = $cur_indent]"
     }
-    @$tree_ref = @{ $tree_ref }[($wanted_idx + 1) .. $#$tree_ref];
-    return ($wanted_ref, $cur_indent)
+    $_[3] = $wanted_ref;
+    $_[4] = $cur_indent;
+    @{ $_[5] } = @{ $_[5] }[ ($wanted_idx + 1) .. $#{ $_[5] } ];
   }
-
-  (undef, undef)  # No change
 }
 
 sub _decode_add_subsection_ref {
