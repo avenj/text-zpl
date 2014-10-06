@@ -25,8 +25,7 @@ sub decode_zpl {
   my $ref  = $root;
   my @descended;
 
-  my $level   = 0;
-  my $lineno  = 0;
+  my ($level, $lineno) = (0,0);
 
   LINE: for my $line (@lines) {
     ++$lineno;
@@ -60,8 +59,7 @@ sub decode_zpl {
           ." [idx = $wanted_idx] [indent = $cur_indent]"
       }
       $ref = $wanted_ref;
-      my $startidx = $wanted_idx + 1;
-      @descended = @descended[$startidx .. $#descended];
+      @descended = @descended[ ($wanted_idx + 1) .. $#descended];
       $level = $cur_indent;
     }
 
@@ -87,8 +85,9 @@ sub decode_zpl {
       } else {
         # Unquoted or mismatched quotes
         my $maybe_trailing = index $tmpval, ' ';
-        $maybe_trailing = length $tmpval unless $maybe_trailing > -1;
-        $realval = substr $tmpval, 0, $maybe_trailing, '';
+        $realval = substr $tmpval, 0, 
+          ($maybe_trailing > -1 ? $maybe_trailing : length $tmpval), 
+          '';
       }
 
       $tmpval =~ s/#.*$//;
