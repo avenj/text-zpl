@@ -16,9 +16,22 @@ our @EXPORT = our @EXPORT_OK = qw/
 # note: not anchored as-is:
 our $ValidName = qr/[A-Za-z0-9\$\-_\@.&+\/]+/;
 
+sub _is_valid_name {
+  # FIXME use first/any instead
+  #  then fix anything that picks up $ValidName
+}
+
+sub _trim_trailing_ws {
+  $_[0] =~ s/\s+$//;
+}
+
+sub _trim_leading_ws {
+  $_[0] =~ s/^\s+//;
+}
+
+
 sub decode_zpl {
   my ($str) = @_;
-
   my @lines = split /(?:\r?\n)|\r/, $str;
 
   my $root = +{};
@@ -29,97 +42,25 @@ sub decode_zpl {
 
   LINE: for my $line (@lines) {
     ++$lineno;
-    $line =~ s/\s+$//;
-    next LINE if length($line) == 0 or $line =~ /^(?:\s+)?#/;
+    # Prep string in-place & skip blank/comments-only:
+    next LINE unless _decode_prepare_line($line);
 
-    my $cur_indent = 0;
-    $cur_indent++ while substr($line, $cur_indent, 1) eq ' ';
-    if ($cur_indent % 4) {
-      confess
-         "Invalid ZPL (line $lineno); "
-        ."expected 4-space indent, indent is $cur_indent"
-    }
-
-    if ($cur_indent == 0) {
-      $ref = $root;
-      @descended = ();
-      $level = 0;
-    } elsif ($cur_indent > $level) {
-      unless (defined $descended[ ($cur_indent / 4) - 1 ]) {
-        confess "Invalid ZPL (line $lineno); no matching parent section",
-          " [$line]"
-      }
-      $level = $cur_indent; 
-    } elsif ($cur_indent < $level) {
-      my $wanted_idx = ( ($level - $cur_indent) / 4 ) - 1 ;
-      my $wanted_ref = $descended[$wanted_idx];
-      unless (defined $wanted_ref) {
-        confess
-          "BUG; cannot find matching parent section"
-          ." [idx = $wanted_idx] [indent = $cur_indent]"
-      }
-      $ref = $wanted_ref;
-      @descended = @descended[ ($wanted_idx + 1) .. $#descended];
-      $level = $cur_indent;
-    }
+    my ($new_ref, $new_lev) = _decode_handle_level(
+      $lineno, $line, $root, $ref, $level, \@descended
+    );
+    $ref   = $new_ref if defined $new_ref;
+    $level = $new_lev if defined $new_lev;
 
     # KV pair:
     if ( (my $sep_pos = index($line, '=')) > 0 ) {
-      my $key = substr $line, $level, ( $sep_pos - $level );
-      $key =~ s/\s+$//;
-      unless ($key =~ /^$ValidName$/) {
-        confess "Invalid ZPL (line $lineno); "
-                ."'$key' is not a valid ZPL property name"
-      }
-
-      my $realval;
-      my $tmpval = substr $line, $sep_pos + 1;
-      $tmpval =~ s/^\s+//;
-
-      my $maybe_q = substr $tmpval, 0, 1;
-      if ( ($maybe_q eq q{'} || $maybe_q eq q{"}) 
-        && (my $matching_q_pos = index $tmpval, $maybe_q, 1) > 1 ) {
-        # Quoted, consume up to matching and clean up tmpval
-        $realval = substr $tmpval, 1, ($matching_q_pos - 1), '';
-        substr $tmpval, 0, 2, '' if substr($tmpval, 0, 2) eq $maybe_q x 2;
-      } else {
-        # Unquoted or mismatched quotes
-        my $maybe_trailing = index $tmpval, ' ';
-        $realval = substr $tmpval, 0, 
-          ($maybe_trailing > -1 ? $maybe_trailing : length $tmpval), 
-          '';
-      }
-
-      $tmpval =~ s/#.*$//;
-      $tmpval =~ s/\s+//;
-      if (length $tmpval) {
-        confess "Invalid ZPL (line $lineno); garbage at end-of-line: '$tmpval'"
-      }
-
-      if (exists $ref->{$key}) {
-        if (ref $ref->{$key} eq 'HASH') {
-          confess
-            "Invalid ZPL (line $lineno); existing subsection with this name"
-        } elsif (ref $ref->{$key} eq 'ARRAY') {
-          push @{ $ref->{$key} }, $realval
-        } else {
-          $ref->{$key} = [ $ref->{$key}, $realval ]
-        }
-        next LINE
-      }
-
-      $ref->{$key} = $realval;
+      my ($key, $val) = _decode_parse_kv($lineno, $line, $level, $sep_pos);
+      _decode_add_kv($lineno, $ref, $key, $val);
       next LINE
     }
 
     # New subsection:
     if (my ($subsect) = $line =~ /^(?:\s+)?($ValidName)(?:\s+?#.*)?$/) {
-      if (exists $ref->{$subsect}) {
-        confess "Invalid ZPL (line $lineno); existing property with this name"
-      }
-      my $new_ref = ($ref->{$subsect} = +{});
-      unshift @descended, $ref;
-      $ref = $new_ref;
+      $ref = _decode_add_subsection_ref($lineno, $ref, $subsect, \@descended);
       next LINE
     }
 
@@ -129,6 +70,113 @@ sub decode_zpl {
   } # LINE
 
   $root
+}
+
+sub _decode_prepare_line {
+  _trim_trailing_ws($_[0]);
+  return if length($_[0]) == 0 or $_[0] =~ /^(?:\s+)?#/;
+  1
+}
+
+sub _decode_handle_level {
+  # Returns ($ref, $newlevel)
+  #   returns undef in either position for no change
+  my ($lineno, $line, $root, $ref, $level, $tree_ref) = @_;
+
+  my $cur_indent = 0;
+  $cur_indent++ while substr($line, $cur_indent, 1) eq ' ';
+  if ($cur_indent % 4) {
+    confess
+       "Invalid ZPL (line $lineno); "
+      ."expected 4-space indent, indent is $cur_indent"
+  }
+
+  if ($cur_indent == 0) {
+    @$tree_ref = ();
+    return ($root, $cur_indent)
+  } elsif ($cur_indent > $level) {
+    unless (defined $tree_ref->[ ($cur_indent / 4) - 1 ]) {
+      confess "Invalid ZPL (line $lineno); no matching parent section",
+        " [$line]"
+    }
+    return (undef, $cur_indent)
+  } elsif ($cur_indent < $level) {
+    my $wanted_idx = ( ($level - $cur_indent) / 4 ) - 1 ;
+    my $wanted_ref = $tree_ref->[$wanted_idx];
+    unless (defined $wanted_ref) {
+      confess
+        "BUG; cannot find matching parent section"
+        ." [idx = $wanted_idx] [indent = $cur_indent]"
+    }
+    @$tree_ref = @{ $tree_ref }[($wanted_idx + 1) .. $#$tree_ref];
+    return ($wanted_ref, $cur_indent)
+  }
+
+  (undef, undef)  # No change
+}
+
+sub _decode_add_subsection_ref {
+  # ($lineno, $ref, $subsect, \@descended)
+  if (exists $_[1]->{ $_[2] }) {
+    confess "Invalid ZPL (line $_[0]); existing property with this name"
+  }
+  my $new_ref = ($_[1]->{ $_[2] } = +{});
+  unshift @{ $_[3] }, $_[1];
+  $new_ref
+}
+
+
+
+sub _decode_parse_kv {
+  # ($lineno, $line, $level, $sep_pos)
+  my $key = substr $_[1], $_[2], ( $_[3] - $_[2] );
+  _trim_trailing_ws($key);
+  unless ($key =~ /^$ValidName$/) {
+    confess "Invalid ZPL (line $_[0]); "
+            ."'$key' is not a valid ZPL property name"
+  }
+
+  my $realval;
+  my $tmpval = substr $_[1], $_[3] + 1;
+  _trim_leading_ws($tmpval);
+
+  my $maybe_q = substr $tmpval, 0, 1;
+  if ( ($maybe_q eq q{'} || $maybe_q eq q{"}) 
+    && (my $matching_q_pos = index $tmpval, $maybe_q, 1) > 1 ) {
+    # Quoted, consume up to matching and clean up tmpval
+    $realval = substr $tmpval, 1, ($matching_q_pos - 1), '';
+    substr $tmpval, 0, 2, '' if substr($tmpval, 0, 2) eq $maybe_q x 2;
+  } else {
+    # Unquoted or mismatched quotes
+    my $maybe_trailing = index $tmpval, ' ';
+    $realval = substr $tmpval, 0,
+      ($maybe_trailing > -1 ? $maybe_trailing : length $tmpval),
+      '';
+  }
+
+  $tmpval =~ s/#.*$//;
+  $tmpval =~ s/\s+//;
+  if (length $tmpval) {
+    confess "Invalid ZPL (line $_[0]); garbage at end-of-line: '$tmpval'"
+  }
+
+  ($key, $realval)
+}
+
+sub _decode_add_kv {
+  # ($lineno, $ref, $key, $val)
+  if (exists $_[1]->{ $_[2] }) {
+    if (ref $_[1]->{ $_[2] } eq 'HASH') {
+      confess
+        "Invalid ZPL (line $_[0]); existing subsection with this name"
+    } elsif (ref $_[1]->{ $_[2] } eq 'ARRAY') {
+      push @{ $_[1]->{ $_[2] } }, $_[3]
+    } else {
+      $_[1]->{ $_[2] } = [ $_[1]->{ $_[2] }, $_[3] ]
+    }
+    return
+  }
+  $_[1]->{ $_[2] } = $_[3]
 }
 
 
