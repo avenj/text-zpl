@@ -1,6 +1,7 @@
 package Text::ZPL;
 
 use strict; use warnings FATAL => 'all';
+no warnings 'void';
 
 use Carp;
 use Scalar::Util 'blessed', 'reftype';
@@ -59,7 +60,7 @@ sub decode_zpl {
 
     # New subsection:
     if (my ($subsect) = $line =~ /^(?:\s+)?($ValidName)(?:\s+?#.*)?$/) {
-      $ref = _decode_add_subsection_ref($lineno, $ref, $subsect, \@descended);
+      _decode_add_subsection($lineno, $ref, $subsect, \@descended);
       next LINE
     }
 
@@ -70,6 +71,8 @@ sub decode_zpl {
 
   $root
 }
+
+# _decode_* funcs operate on caller's variables in-place:
 
 sub _decode_prepare_line {
   _trim_trailing_ws($_[0]);
@@ -111,16 +114,14 @@ sub _decode_handle_level {
   }
 }
 
-sub _decode_add_subsection_ref {
+sub _decode_add_subsection {
   # ($lineno, $ref, $subsect, \@descended)
   if (exists $_[1]->{ $_[2] }) {
     confess "Invalid ZPL (line $_[0]); existing property with this name"
   }
-  my $new_ref = $_[1]->{ $_[2] } = +{};
   unshift @{ $_[3] }, $_[1];
-  $new_ref
+  $_[1] = $_[1]->{ $_[2] } = +{};
 }
-
 
 
 sub _decode_parse_kv {
@@ -140,7 +141,7 @@ sub _decode_parse_kv {
     && (my $matching_q_pos = index $tmpval, $maybe_q, 1) > 1 ) {
     # Quoted, consume up to matching and clean up tmpval
     $realval = substr $tmpval, 1, ($matching_q_pos - 1), '';
-    substr $tmpval, 0, 2, '' if substr($tmpval, 0, 2) eq $maybe_q x 2;
+    substr $tmpval, 0, 2, '';
   } else {
     # Unquoted or mismatched quotes
     my $maybe_trailing = index $tmpval, ' ';
