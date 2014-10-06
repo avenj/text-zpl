@@ -72,12 +72,9 @@ sub decode_zpl {
   $root
 }
 
-# _decode_* funcs operate on caller's variables in-place:
-
 sub _decode_prepare_line {
   _trim_trailing_ws($_[0]);
-  return if length($_[0]) == 0 or $_[0] =~ /^(?:\s+)?#/;
-  1
+  length($_[0]) == 0 || $_[0] =~ /^(?:\s+)?#/ ? () : 1
 }
 
 sub _decode_handle_level {
