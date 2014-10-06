@@ -29,39 +29,13 @@ sub decode_zpl {
 
   LINE: for my $line (@lines) {
     ++$lineno;
-    $line =~ s/\s+$//;
-    next LINE if length($line) == 0 or $line =~ /^(?:\s+)?#/;
+    next LINE unless _decode_prepare_line($line);
 
-    my $cur_indent = 0;
-    $cur_indent++ while substr($line, $cur_indent, 1) eq ' ';
-    if ($cur_indent % 4) {
-      confess
-         "Invalid ZPL (line $lineno); "
-        ."expected 4-space indent, indent is $cur_indent"
-    }
-
-    if ($cur_indent == 0) {
-      $ref = $root;
-      @descended = ();
-      $level = 0;
-    } elsif ($cur_indent > $level) {
-      unless (defined $descended[ ($cur_indent / 4) - 1 ]) {
-        confess "Invalid ZPL (line $lineno); no matching parent section",
-          " [$line]"
-      }
-      $level = $cur_indent; 
-    } elsif ($cur_indent < $level) {
-      my $wanted_idx = ( ($level - $cur_indent) / 4 ) - 1 ;
-      my $wanted_ref = $descended[$wanted_idx];
-      unless (defined $wanted_ref) {
-        confess
-          "BUG; cannot find matching parent section"
-          ." [idx = $wanted_idx] [indent = $cur_indent]"
-      }
-      $ref = $wanted_ref;
-      @descended = @descended[ ($wanted_idx + 1) .. $#descended];
-      $level = $cur_indent;
-    }
+    my ($new_ref, $new_lev) = _decode_handle_level(
+      $lineno, $line, $root, $ref, $level, \@descended
+    );
+    $ref = $new_ref if defined $new_ref;
+    $level = $new_lev if defined $new_lev;
 
     # KV pair:
     if ( (my $sep_pos = index($line, '=')) > 0 ) {
@@ -82,6 +56,48 @@ sub decode_zpl {
   } # LINE
 
   $root
+}
+
+sub _decode_prepare_line {
+  # Operates on actual line in-place:
+  $_[0] =~ s/\s+$//;
+  return if length($_[0]) == 0 or $_[0] =~ /^(?:\s+)?#/;
+  1
+}
+
+sub _decode_handle_level {
+  # Returns ($ref, $newlevel)
+  #   returns undef in either position for no change
+  my ($lineno, $line, $root, $ref, $level, $tree_ref) = @_;
+  my $cur_indent = 0;
+  $cur_indent++ while substr($line, $cur_indent, 1) eq ' ';
+  if ($cur_indent % 4) {
+    confess
+       "Invalid ZPL (line $lineno); "
+      ."expected 4-space indent, indent is $cur_indent"
+  }
+
+  if ($cur_indent == 0) {
+    @$tree_ref = ();
+    return ($root, $cur_indent)
+  } elsif ($cur_indent > $level) {
+    unless (defined $tree_ref->[ ($cur_indent / 4) - 1 ]) {
+      confess "Invalid ZPL (line $lineno); no matching parent section",
+        " [$line]"
+    }
+    return (undef, $cur_indent)
+  } elsif ($cur_indent < $level) {
+    my $wanted_idx = ( ($level - $cur_indent) / 4 ) - 1 ;
+    my $wanted_ref = $tree_ref->[$wanted_idx];
+    unless (defined $wanted_ref) {
+      confess
+        "BUG; cannot find matching parent section"
+        ." [idx = $wanted_idx] [indent = $cur_indent]"
+    }
+    @$tree_ref = @{ $tree_ref }[($wanted_idx + 1) .. $#$tree_ref];
+    return ($wanted_ref, $cur_indent)
+  }
+  (undef, undef)
 }
 
 sub _decode_add_subsection_ref {
