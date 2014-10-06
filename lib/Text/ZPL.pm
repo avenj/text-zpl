@@ -16,9 +16,22 @@ our @EXPORT = our @EXPORT_OK = qw/
 # note: not anchored as-is:
 our $ValidName = qr/[A-Za-z0-9\$\-_\@.&+\/]+/;
 
+sub _is_valid_name {
+  # FIXME use first/any instead
+  #  then fix anything that picks up $ValidName
+}
+
+sub _trim_trailing_ws {
+  $_[0] =~ s/\s+$//;
+}
+
+sub _trim_leading_ws {
+  $_[0] =~ s/^\s+//;
+}
+
+
 sub decode_zpl {
   my ($str) = @_;
-
   my @lines = split /(?:\r?\n)|\r/, $str;
 
   my $root = +{};
@@ -29,12 +42,13 @@ sub decode_zpl {
 
   LINE: for my $line (@lines) {
     ++$lineno;
+    # Prep string in-place & skip blank/comments-only:
     next LINE unless _decode_prepare_line($line);
 
     my ($new_ref, $new_lev) = _decode_handle_level(
       $lineno, $line, $root, $ref, $level, \@descended
     );
-    $ref = $new_ref if defined $new_ref;
+    $ref   = $new_ref if defined $new_ref;
     $level = $new_lev if defined $new_lev;
 
     # KV pair:
@@ -59,8 +73,7 @@ sub decode_zpl {
 }
 
 sub _decode_prepare_line {
-  # Operates on actual line in-place:
-  $_[0] =~ s/\s+$//;
+  _trim_trailing_ws($_[0]);
   return if length($_[0]) == 0 or $_[0] =~ /^(?:\s+)?#/;
   1
 }
@@ -69,6 +82,7 @@ sub _decode_handle_level {
   # Returns ($ref, $newlevel)
   #   returns undef in either position for no change
   my ($lineno, $line, $root, $ref, $level, $tree_ref) = @_;
+
   my $cur_indent = 0;
   $cur_indent++ while substr($line, $cur_indent, 1) eq ' ';
   if ($cur_indent % 4) {
@@ -97,7 +111,8 @@ sub _decode_handle_level {
     @$tree_ref = @{ $tree_ref }[($wanted_idx + 1) .. $#$tree_ref];
     return ($wanted_ref, $cur_indent)
   }
-  (undef, undef)
+
+  (undef, undef)  # No change
 }
 
 sub _decode_add_subsection_ref {
@@ -110,10 +125,12 @@ sub _decode_add_subsection_ref {
   $new_ref
 }
 
+
+
 sub _decode_parse_kv {
   # ($lineno, $line, $level, $sep_pos)
   my $key = substr $_[1], $_[2], ( $_[3] - $_[2] );
-  $key =~ s/\s+$//;
+  _trim_trailing_ws($key);
   unless ($key =~ /^$ValidName$/) {
     confess "Invalid ZPL (line $_[0]); "
             ."'$key' is not a valid ZPL property name"
@@ -121,7 +138,7 @@ sub _decode_parse_kv {
 
   my $realval;
   my $tmpval = substr $_[1], $_[3] + 1;
-  $tmpval =~ s/^\s+//;
+  _trim_leading_ws($tmpval);
 
   my $maybe_q = substr $tmpval, 0, 1;
   if ( ($maybe_q eq q{'} || $maybe_q eq q{"}) 
@@ -132,8 +149,9 @@ sub _decode_parse_kv {
   } else {
     # Unquoted or mismatched quotes
     my $maybe_trailing = index $tmpval, ' ';
-    $maybe_trailing = length $tmpval unless $maybe_trailing > -1;
-    $realval = substr $tmpval, 0, $maybe_trailing, '';
+    $realval = substr $tmpval, 0,
+      ($maybe_trailing > -1 ? $maybe_trailing : length $tmpval),
+      '';
   }
 
   $tmpval =~ s/#.*$//;
