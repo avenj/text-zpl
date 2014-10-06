@@ -65,61 +65,14 @@ sub decode_zpl {
 
     # KV pair:
     if ( (my $sep_pos = index($line, '=')) > 0 ) {
-      my $key = substr $line, $level, ( $sep_pos - $level );
-      $key =~ s/\s+$//;
-      unless ($key =~ /^$ValidName$/) {
-        confess "Invalid ZPL (line $lineno); "
-                ."'$key' is not a valid ZPL property name"
-      }
-
-      my $realval;
-      my $tmpval = substr $line, $sep_pos + 1;
-      $tmpval =~ s/^\s+//;
-
-      my $maybe_q = substr $tmpval, 0, 1;
-      if ( ($maybe_q eq q{'} || $maybe_q eq q{"}) 
-        && (my $matching_q_pos = index $tmpval, $maybe_q, 1) > 1 ) {
-        # Quoted, consume up to matching and clean up tmpval
-        $realval = substr $tmpval, 1, ($matching_q_pos - 1), '';
-        substr $tmpval, 0, 2, '' if substr($tmpval, 0, 2) eq $maybe_q x 2;
-      } else {
-        # Unquoted or mismatched quotes
-        my $maybe_trailing = index $tmpval, ' ';
-        $realval = substr $tmpval, 0, 
-          ($maybe_trailing > -1 ? $maybe_trailing : length $tmpval), 
-          '';
-      }
-
-      $tmpval =~ s/#.*$//;
-      $tmpval =~ s/\s+//;
-      if (length $tmpval) {
-        confess "Invalid ZPL (line $lineno); garbage at end-of-line: '$tmpval'"
-      }
-
-      if (exists $ref->{$key}) {
-        if (ref $ref->{$key} eq 'HASH') {
-          confess
-            "Invalid ZPL (line $lineno); existing subsection with this name"
-        } elsif (ref $ref->{$key} eq 'ARRAY') {
-          push @{ $ref->{$key} }, $realval
-        } else {
-          $ref->{$key} = [ $ref->{$key}, $realval ]
-        }
-        next LINE
-      }
-
-      $ref->{$key} = $realval;
+      my ($key, $val) = _decode_parse_kv($lineno, $line, $level, $sep_pos);
+      _decode_add_kv($lineno, $ref, $key, $val);
       next LINE
     }
 
     # New subsection:
     if (my ($subsect) = $line =~ /^(?:\s+)?($ValidName)(?:\s+?#.*)?$/) {
-      if (exists $ref->{$subsect}) {
-        confess "Invalid ZPL (line $lineno); existing property with this name"
-      }
-      my $new_ref = ($ref->{$subsect} = +{});
-      unshift @descended, $ref;
-      $ref = $new_ref;
+      $ref = _decode_add_subsection_ref($lineno, $ref, $subsect, \@descended);
       next LINE
     }
 
@@ -129,6 +82,68 @@ sub decode_zpl {
   } # LINE
 
   $root
+}
+
+sub _decode_add_subsection_ref {
+  my ($lineno, $ref, $subsect, $tree_ref) = @_;
+  if (exists $ref->{$subsect}) {
+    confess "Invalid ZPL (line $lineno); existing property with this name"
+  }
+  my $new_ref = ($ref->{$subsect} = +{});
+  unshift @$tree_ref, $ref;
+  $new_ref
+}
+
+sub _decode_parse_kv {
+  my ($lineno, $line, $level, $sep_pos) = @_;
+
+  my $key = substr $line, $level, ( $sep_pos - $level );
+  $key =~ s/\s+$//;
+  unless ($key =~ /^$ValidName$/) {
+    confess "Invalid ZPL (line $lineno); "
+            ."'$key' is not a valid ZPL property name"
+  }
+
+  my $realval;
+  my $tmpval = substr $line, $sep_pos + 1;
+  $tmpval =~ s/^\s+//;
+
+  my $maybe_q = substr $tmpval, 0, 1;
+  if ( ($maybe_q eq q{'} || $maybe_q eq q{"}) 
+    && (my $matching_q_pos = index $tmpval, $maybe_q, 1) > 1 ) {
+    # Quoted, consume up to matching and clean up tmpval
+    $realval = substr $tmpval, 1, ($matching_q_pos - 1), '';
+    substr $tmpval, 0, 2, '' if substr($tmpval, 0, 2) eq $maybe_q x 2;
+  } else {
+    # Unquoted or mismatched quotes
+    my $maybe_trailing = index $tmpval, ' ';
+    $maybe_trailing = length $tmpval unless $maybe_trailing > -1;
+    $realval = substr $tmpval, 0, $maybe_trailing, '';
+  }
+
+  $tmpval =~ s/#.*$//;
+  $tmpval =~ s/\s+//;
+  if (length $tmpval) {
+    confess "Invalid ZPL (line $lineno); garbage at end-of-line: '$tmpval'"
+  }
+
+  ($key, $realval)
+}
+
+sub _decode_add_kv {
+  my ($lineno, $ref, $key, $val) = @_;
+  if (exists $ref->{$key}) {
+    if (ref $ref->{$key} eq 'HASH') {
+      confess
+        "Invalid ZPL (line $lineno); existing subsection with this name"
+    } elsif (ref $ref->{$key} eq 'ARRAY') {
+      push @{ $ref->{$key} }, $val
+    } else {
+      $ref->{$key} = [ $ref->{$key}, $val ]
+    }
+    return
+  }
+  $ref->{$key} = $val
 }
 
 
