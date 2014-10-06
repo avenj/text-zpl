@@ -17,19 +17,6 @@ our @EXPORT = our @EXPORT_OK = qw/
 # note: not anchored as-is:
 our $ValidName = qr/[A-Za-z0-9\$\-_\@.&+\/]+/;
 
-sub _is_valid_name {
-  # FIXME use first/any instead
-  #  then fix anything that picks up $ValidName
-}
-
-sub _trim_trailing_ws {
-  $_[0] =~ s/\s+$//;
-}
-
-sub _trim_leading_ws {
-  $_[0] =~ s/^\s+//;
-}
-
 
 sub decode_zpl {
   my ($str) = @_;
@@ -73,7 +60,7 @@ sub decode_zpl {
 }
 
 sub _decode_prepare_line {
-  _trim_trailing_ws($_[0]);
+  $_[0] =~ s/\s+$//;
   length($_[0]) == 0 || $_[0] =~ /^(?:\s+)?#/ ? () : 1
 }
 
@@ -124,14 +111,14 @@ sub _decode_add_subsection {
 sub _decode_parse_kv {
   # ($lineno, $line, $level, $sep_pos)
   my $key = substr $_[1], $_[2], ( $_[3] - $_[2] );
-  _trim_trailing_ws($key);
+  $key =~ s/\s+$//;
   unless ($key =~ /^$ValidName$/) {
     confess "Invalid ZPL (line $_[0]); "
             ."'$key' is not a valid ZPL property name"
   }
 
   my $tmpval = substr $_[1], $_[3] + 1;
-  _trim_leading_ws($tmpval);
+  $tmpval =~ s/^\s+//;
   my $realval;
   my $maybe_q = substr $tmpval, 0, 1;
   if ( ($maybe_q eq q{'} || $maybe_q eq q{"}) 
