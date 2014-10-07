@@ -15,9 +15,11 @@ sub LEVEL           () { 5 }
 sub TREE            () { 6 }
 
 sub new {
+  #  max_buffer_size =>
+  #  string =>
   my ($class, %param) = @_;
   my $root = +{};
-  bless [
+  my $self = bless [
     ($param{max_buffer_size} || 0),  # BUF_MAX
     '',                              # BUF
     0,                               # MAYBE_EXTRA_EOL
@@ -25,32 +27,11 @@ sub new {
     $root,                           # CURRENT
     0,                               # LEVEL
     [],                              # TREE
-  ], $class
-}
+  ], $class;
 
+  $self->push($param{string}) if defined $param{string};
 
-sub _root {
-  defined $_[0]->[ROOT] ?
-    $_[0]->[ROOT]
-    : ($_[0]->[ROOT] = +{})
-}
-
-sub _current {
-  defined $_[0]->[CURRENT] ?
-    $_[0]->[CURRENT]
-    : ($_[0]->[CURRENT] = $_[0]->_root)
-}
-
-sub _level {
-  defined $_[0]->[LEVEL] ?
-    $_[0]->[LEVEL]
-    : ($_[0]->[LEVEL] = 0)
-}
-
-sub _tree {
-  defined $_[0]->[TREE] ?
-    $_[0]->[TREE]
-    : ($_[0]->[TREE] = [])
+  $self
 }
 
 
@@ -64,18 +45,6 @@ sub set_max_buffer_size {
   $_[0]->[BUF_MAX] = $_[1]
 }
 
-
-sub _buf {
-  defined $_[0]->[BUF] ? 
-    $_[0]->[BUF]
-    : ($_[0]->[BUF] = '')
-}
-
-sub _clear_buf { 
-  my $rv = length $_[0]->_buf;
-  $_[0]->[BUF] = '';
-  $rv
-}
 
 sub _maybe_extra_eol {
   $_[0]->[MAYBE_EXTRA_EOL]
@@ -92,7 +61,7 @@ sub _maybe_extra_eol_on {
 
 sub _parse_current_buffer {
   my ($self) = @_;
-  my $line = $self->_buf;
+  my $line = $self->[BUF];
 
   # skip blank/comments-only;
   unless ( Text::ZPL::_decode_prepare_line($line) ) {
@@ -135,9 +104,9 @@ sub _parse_current_buffer {
 }
 
 
-sub get { shift->_root }
+sub get { shift->[ROOT] }
 
-sub get_buffer { shift->_buf }
+sub get_buffer { shift->[BUF] }
 
 
 sub push {
@@ -169,7 +138,7 @@ sub push {
 
     croak "Exceeded maximum buffer size for ZPL stream"
       if  $self->max_buffer_size
-      and length($self->_buf) >= $self->max_buffer_size;
+      and length($self->[BUF]) >= $self->max_buffer_size;
 
     $self->[BUF] .= $chr
   }

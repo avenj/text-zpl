@@ -30,7 +30,7 @@ sub decode_zpl {
 
   my ($level, $lineno) = (0,0);
 
-  LINE: for my $line (split /(?:\r?\n)|\r/, $str) {
+  LINE: for my $line (split /(?:\015?\012)|\015/, $str) {
     ++$lineno;
     # Prep string in-place & skip blank/comments-only:
     next LINE unless _decode_prepare_line($line);
