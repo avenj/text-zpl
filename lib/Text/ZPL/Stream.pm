@@ -30,15 +30,10 @@ sub new {
   ], $class
 }
 
-
 sub max_buffer_size {
   defined $_[0]->[BUF_MAX] ?
     $_[0]->[BUF_MAX]
     : ($_[0]->[BUF_MAX] = 0)
-}
-
-sub set_max_buffer_size {
-  $_[0]->[BUF_MAX] = $_[1]
 }
 
 
@@ -59,8 +54,8 @@ sub _parse_current_buffer {
   my ($self) = @_;
   my $line = $self->[BUF];
 
-  # skip blank/comments-only;
   unless ( Text::ZPL::_decode_prepare_line($line) ) {
+    # skippable:
     $self->[BUF] = '';
     return
   }
@@ -107,7 +102,6 @@ sub get_buffer { shift->[BUF] }
 
 sub push {
   my $self = shift;
-  # Accept strings, lists of strings, individual chrs:
   my @chrs = split '', join '', @_;
 
   my $handled = 0;
@@ -132,7 +126,7 @@ sub push {
 
     $self->_maybe_extra_eol_off if $self->_maybe_extra_eol;
 
-    croak "Exceeded maximum buffer size for ZPL stream"
+    confess "Exceeded maximum buffer size for ZPL stream"
       if  $self->max_buffer_size
       and length($self->[BUF]) >= $self->max_buffer_size;
 
@@ -192,7 +186,6 @@ Defaults to 0 (unlimited).
 
 =head2 push
 
-  $stream->push(@lines);
   $stream->push(@chars);
   $stream->push($string);
 
