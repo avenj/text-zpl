@@ -53,11 +53,67 @@ my $expected = +{
     $stream->push($chrs);
   }
   is_deeply $stream->get, $expected,
-    'one arg push w/ two chars per ok'
-      or diag explain $stream;
+    'one arg push w/ two chars per ok';
 }
 
+# Multi-arg:
+{
+  my $stream = Text::ZPL::Stream->new;
+  my $expected_lcount = split "\n", $zpl;
+  # push retval:
+  cmp_ok
+    $stream->push(map $_."\n", split "\n", $zpl),
+    '==', 
+    $expected_lcount,
+    'push returned expected linecount';
+  is_deeply $stream->get, $expected,
+    'multi-arg push ok';
+}
 
+# Mixed newlines:
+{
+  my $stream = Text::ZPL::Stream->new;
+  my $mixed_nl = "foo=1\015\012bar=2\012baz=3\015quux=weeble\n";
+  $stream->push($mixed_nl);
+  is_deeply $stream->get,
+    +{ foo => 1, bar => 2, baz => 3, quux => 'weeble' },
+    'mixed newlines push ok';
+}
+
+# Max buf size exceeded
+{
+  my $stream = Text::ZPL::Stream->new(
+    max_buffer_size => 5,
+  );
+  $stream->push("foo=1\n");
+  is_deeply $stream->get,
+    +{ foo => 1 },
+    'max_buffer_size push ok';
+  $stream->push("bar=2\n");
+  is_deeply $stream->get,
+    +{ foo => 1, bar => 2 },
+    'max_buffer_size push second line ok';
+  eval {; $stream->push("baz=10\n") };
+  like $@, qr/maximum buffer size/, 'exceeding buffer died ok';
+}
+
+# get_buffer
+{
+  my $stream = Text::ZPL::Stream->new;
+  $stream->push("foo");
+  cmp_ok $stream->get_buffer, 'eq', 'foo', 'get_buffer ok';
+}
+
+# Parser failures
+{
+  my $stream = Text::ZPL::Stream->new;
+  $stream->push("foo\n");
+  $stream->push(' ' x 8);
+  eval {; $stream->push("bar = 1\n") };
+  like $@, qr/parent/, "parser failure in stream dies";
+}
+
+# FIXME test other parse fails?
 
 done_testing;
 
