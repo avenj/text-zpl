@@ -12,7 +12,6 @@ our @EXPORT = our @EXPORT_OK = qw/
   decode_zpl
 /;
 
-# FIXME streaming interface?
 
 # note: not anchored as-is:
 our $ValidName = qr/[A-Za-z0-9\$\-_\@.&+\/]+/;

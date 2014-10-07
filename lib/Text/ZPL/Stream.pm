@@ -6,6 +6,7 @@ use Carp;
 use Text::ZPL ();
 
 
+
 sub BUF_MAX         () { 0 }
 sub BUF             () { 1 }
 sub MAYBE_EXTRA_EOL () { 2 }
@@ -141,6 +142,8 @@ sub push {
 
 =pod
 
+=for Pod::Coverage BUF(_MAX)? MAYBE_EXTRA_EOL ROOT CURRENT LEVEL TREE
+
 =head1 NAME
 
 Text::ZPL::Stream - Streaming ZPL decoder
@@ -151,11 +154,18 @@ Text::ZPL::Stream - Streaming ZPL decoder
 
   my $stream = Text::ZPL::Stream->new;
 
-  while ( defined(my $chrs = magically_get_some_zpl) ) {
-    $stream->push($chrs);
+  if ( $stream->push($zpl_chrs) ) {
+    # Parsed at least one complete line:
+    my $ref = $stream->get;
+    # ...
   }
 
+  # Or in a loop:
+  while ( defined(my $zpl_chrs = magically_get_some_zpl) ) {
+    $stream->push($zpl_chrs);
+  }
   my $ref = $stream->get;
+  # ...
 
 =head1 DESCRIPTION
 
@@ -167,6 +177,7 @@ details.
 =head2 new
 
   my $stream = Text::ZPL::Stream->new(
+    # Optional:
     max_buffer_size => 512,
   );
 
@@ -190,8 +201,9 @@ Defaults to 0 (unlimited).
   $stream->push($string);
 
 Takes characters (individually or as strings) and collects until an
-end-of-line marker is encountered, at which point a parse is called and the
-reference returned by L</get> is altered appropriately.
+end-of-line marker (C<\r>, C<\n>, or C<\r\n>) is encountered, at which point a
+parse is called and the reference returned by L</get> is altered
+appropriately.
 
 An exception is thrown if parsing fails, or if L</max_buffer_size> is reached
 -- if you're unsure of your incoming data, you may want to wrap C<push> calls
@@ -210,6 +222,8 @@ indicator that L</get> ought be called:
 
   my $ref = $stream->get;
 
+Returns the C<HASH> reference to the decoded structure.
+
 B<< This is the actual reference in use by the decoder, not a copy! >>
 Altering the structure of the C<HASH> may have unintended consequences, in
 which case you may want to make use of L<Storable/dclone> to create a safe
@@ -218,7 +232,7 @@ copy.
 =head2 get_buffer
 
 Returns a string containing the current character buffer (that is, any
-currently incomplete line).
+incomplete line).
 
 =head1 AUTHOR
 
