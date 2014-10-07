@@ -66,6 +66,10 @@ sub _decode_prepare_line {
 
 sub _decode_handle_level {
   # ($lineno, $line, $root, $ref, $level, $tree_ref)
+  # 
+  # Manage indentation-based hierarchy
+  # Validates indent level
+  # Munges current $ref, $level, $tree_ref in-place
 
   my $cur_indent = 0;
   $cur_indent++ while substr($_[1], $cur_indent, 1) eq ' ';
@@ -110,6 +114,10 @@ sub _decode_add_subsection {
 
 sub _decode_parse_kv {
   # ($lineno, $line, $level, $sep_pos)
+  #
+  # Takes a line that appears to contain a k = v pair
+  # Returns ($key, $val)
+
   my $key = substr $_[1], $_[2], ( $_[3] - $_[2] );
   $key =~ s/\s+$//;
   unless ($key =~ /^$ValidName$/) {
@@ -145,6 +153,9 @@ sub _decode_parse_kv {
 
 sub _decode_add_kv {
   # ($lineno, $ref, $key, $val)
+  #
+  # Add a value to property; create lists as-needed
+
   if (exists $_[1]->{ $_[2] }) {
     if (ref $_[1]->{ $_[2] } eq 'HASH') {
       confess
