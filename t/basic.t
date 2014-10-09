@@ -51,7 +51,7 @@ my $reencoded = encode_zpl $data;
 my $roundtripped = decode_zpl $reencoded;
 is_deeply $roundtripped, $data, 'roundtripped ok';
 
-
+# mixed EOL markers
 my $mixed_newlines = "foo=1\015\012bar=2\012baz=3\015quux=weeble\n";
 my $mixed_decoded  = decode_zpl $mixed_newlines;
 is_deeply $mixed_decoded,
@@ -60,6 +60,7 @@ is_deeply $mixed_decoded,
   },
   'mixed newlines ok';
 
+# empty lists
 my $with_empty_arrayref = +{
   foo => [],
 };
@@ -68,7 +69,34 @@ is_deeply $empty_arrayref_rtrip,
   +{ },
   'empty arrayref skipped ok';
 
-# FIXME tests for encoding w/ various types of whitespace/specials in values
+# encode quoting behavior
+cmp_ok encode_zpl(+{ bar => 'baz' }),
+  eq => qq[bar = baz\n],
+  'encode skipped quoting single val ok';
+
+cmp_ok encode_zpl(+{ foo => "bar baz" }), 
+  eq => qq[foo = "bar baz"\n],
+  'encode double-quoted string with spaces ok';
+
+cmp_ok encode_zpl(+{ foo => 'bar"' }), 
+  eq => qq[foo = 'bar"'\n],
+  'encode single-quoted string with double quote ok';
+
+cmp_ok encode_zpl(+{ foo => "ba'r" }), 
+  eq => qq[foo = "ba'r"\n],
+  'encode double-quoted string with single quote ok';
+
+cmp_ok encode_zpl(+{ foo => "bar=baz" }),
+  eq => qq[foo = "bar=baz"\n],
+  'encode string containing = ok';
+
+cmp_ok encode_zpl(+{ foo => "bar#baz" }),
+  eq => qq[foo = "bar#baz"\n],
+  'encode string containing # ok';
+
+cmp_ok encode_zpl(+{ foo => "bar\tbaz" }),
+  eq => qq[foo = "bar\tbaz"\n],
+  'encode string containing tabs ok';
 
 done_testing;
 
