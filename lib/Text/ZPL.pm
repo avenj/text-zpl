@@ -90,11 +90,6 @@ sub _decode_handle_level {
   } elsif ($cur_indent < $_[4]) {
     my $wanted_idx = ( ($_[4] - $cur_indent) / 4 ) - 1 ;
     my $wanted_ref = $_[5]->[$wanted_idx];
-    unless (defined $wanted_ref) {
-      confess
-        "BUG; cannot find matching parent section"
-        ." [idx = $wanted_idx] [indent = $cur_indent]"
-    }
     $_[3] = $wanted_ref;
     $_[4] = $cur_indent;
     @{ $_[5] } = @{ $_[5] }[ ($wanted_idx + 1) .. $#{ $_[5] } ];
