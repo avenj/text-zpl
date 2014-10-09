@@ -42,4 +42,7 @@ is_deeply decode_zpl($zpl),
 eval {; encode_zpl(FooArray->new) };
 ok $@, 'trying to serialize top-lev ARRAY dies';
 
+eval {; encode_zpl(bless +{}, 'Dies') };
+like $@, qr/Dies/, 'trying to serialize obj without TO_ZPL dies';
+
 done_testing

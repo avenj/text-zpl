@@ -86,6 +86,8 @@ my $expected = +{
   my $stream = Text::ZPL::Stream->new(
     max_buffer_size => 5,
   );
+  cmp_ok $stream->max_buffer_size, '==', 5,
+    'max_buffer_size accessor ok';
   $stream->push("foo=1\n");
   is_deeply $stream->get,
     +{ foo => 1 },
