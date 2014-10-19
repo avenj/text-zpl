@@ -136,8 +136,7 @@ sub _decode_parse_kv {
       '';
   }
 
-  $tmpval =~ s/#.*$//;
-  $tmpval =~ s/\s+//;
+  $tmpval =~ s/(?:\s+)?(?:#.*)?$//;
   if (length $tmpval) {
     confess "Invalid ZPL (line $_[0]); garbage at end-of-line: '$tmpval'"
   }
