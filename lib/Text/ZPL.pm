@@ -23,8 +23,7 @@ sub decode_zpl {
   confess "Expected a ZPL text string but received no arguments"
     unless defined $str;
 
-  my $root = +{};
-  my $ref  = $root;
+  my $root = my $ref = +{};
   my @descended;
 
   my ($level, $lineno) = (0,0);
@@ -121,6 +120,7 @@ sub _decode_parse_kv {
 
   my $tmpval = substr $_[1], $_[3] + 1;
   $tmpval =~ s/^\s+//;
+
   my $realval;
   my $maybe_q = substr $tmpval, 0, 1;
   if ( ($maybe_q eq q{'} || $maybe_q eq q{"}) 
