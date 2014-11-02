@@ -150,13 +150,13 @@ sub _decode_add_kv {
   # Add a value to property; create lists as-needed
 
   if (exists $_[1]->{ $_[2] }) {
-    if (ref $_[1]->{ $_[2] } eq 'HASH') {
-      confess
-        "Invalid ZPL (line $_[0]); existing subsection with this name"
+    if (! ref $_[1]->{ $_[2] }) {
+      $_[1]->{ $_[2] } = [ $_[1]->{ $_[2] }, $_[3] ]
     } elsif (ref $_[1]->{ $_[2] } eq 'ARRAY') {
       push @{ $_[1]->{ $_[2] } }, $_[3]
-    } else {
-      $_[1]->{ $_[2] } = [ $_[1]->{ $_[2] }, $_[3] ]
+    } elsif (ref $_[1]->{ $_[2] } eq 'HASH') {
+      confess
+        "Invalid ZPL (line $_[0]); existing subsection with this name"
     }
     return
   }
