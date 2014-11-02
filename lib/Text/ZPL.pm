@@ -31,18 +31,13 @@ sub decode_zpl {
     # Prep string in-place & skip blank/comments-only:
     next LINE unless _decode_prepare_line($line);
 
-    # Manage structure:
     _decode_handle_level($lineno, $line, $root, $ref, $level, \@descended);
 
-    # KV pair:
     if ( (my $sep_pos = index($line, '=')) > 0 ) {
       my ($key, $val) = _decode_parse_kv($lineno, $line, $level, $sep_pos);
       _decode_add_kv($lineno, $ref, $key, $val);
       next LINE
-    }
-
-    # New subsection:
-    if (my ($subsect) = $line =~ /^(?:\s+)?($ValidName)(?:\s+?#.*)?$/) {
+    } elsif (my ($subsect) = $line =~ /^(?:\s+)?($ValidName)(?:\s+?#.*)?$/) {
       _decode_add_subsection($lineno, $ref, $subsect, \@descended);
       next LINE
     }
@@ -57,7 +52,7 @@ sub decode_zpl {
 
 sub _decode_prepare_line {
   $_[0] =~ s/\s+$//;
-  length($_[0]) == 0 || $_[0] =~ /^(?:\s+)?#/ ? () : 1
+  !(length($_[0]) == 0 || $_[0] =~ /^(?:\s+)?#/)
 }
 
 sub _decode_handle_level {
