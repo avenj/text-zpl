@@ -18,17 +18,15 @@ our $ValidName = qr/[A-Za-z0-9\$\-_\@.&+\/]+/;
 
 
 sub decode_zpl {
-  my ($str) = @_;
-
   confess "Expected a ZPL text string but received no arguments"
-    unless defined $str;
+    unless defined $_[0];
 
   my $root = my $ref = +{};
   my @descended;
 
   my ($level, $lineno) = (0,0);
 
-  LINE: for my $line (split /(?:\015?\012)|\015/, $str) {
+  LINE: for my $line (split /(?:\015?\012)|\015/, $_[0]) {
     ++$lineno;
     # Prep string in-place & skip blank/comments-only:
     next LINE unless _decode_prepare_line($line);
