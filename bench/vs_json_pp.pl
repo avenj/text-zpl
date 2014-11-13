@@ -21,7 +21,7 @@ my $struct = +{
 my $tiny = JSON::Tiny->new;
 
 my ($js, $tjs, $zpl);
-cmpthese( 5_000, +{
+cmpthese( 2_000, +{
   encode_jsonpp => sub {
     $js = encode_json $struct
   },
