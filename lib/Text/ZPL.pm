@@ -91,7 +91,7 @@ sub _decode_handle_level {
 sub _decode_add_subsection {
   # ($lineno, $ref, $subsect, \@descended)
   if (exists $_[1]->{ $_[2] }) {
-    confess "Invalid ZPL (line $_[0]); existing property with this name"
+    confess "Invalid ZPL (line $_[0]); existing property '$_[2]'"
   }
   unshift @{ $_[3] }, $_[1];
   $_[1] = $_[1]->{ $_[2] } = +{};

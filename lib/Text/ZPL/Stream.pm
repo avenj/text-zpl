@@ -6,7 +6,6 @@ use Carp;
 use Text::ZPL ();
 
 
-
 sub BUF_MAX         () { 0 }
 sub BUF             () { 1 }
 sub MAYBE_EXTRA_EOL () { 2 }
@@ -14,6 +13,7 @@ sub ROOT            () { 3 }
 sub CURRENT         () { 4 }
 sub LEVEL           () { 5 }
 sub TREE            () { 6 }
+
 
 sub new {
   #  max_buffer_size =>
