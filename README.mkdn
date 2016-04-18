@@ -102,4 +102,4 @@ Encoding skips empty lists (`ARRAY` references).
 
 # AUTHOR
 
-Jon Portnoy <avenj@cobaltirc.org>
+Jon Portnoy &lt;avenj@cobaltirc.org>
