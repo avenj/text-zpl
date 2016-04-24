@@ -238,8 +238,12 @@ Text::ZPL - Encode and decode ZeroMQ Property Language
 
   # Decode ZPL to a HASH:
   my $data = decode_zpl( $zpl_text );
+
   # Encode a HASH to ZPL text:
   my $zpl = encode_zpl( $data );
+
+  # From a shell; examine the Perl representation of a ZPL document:
+  sh$ zpl_to_pl my_config.zpl
 
 =head1 DESCRIPTION
 
