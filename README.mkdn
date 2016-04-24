@@ -6,8 +6,12 @@ Text::ZPL - Encode and decode ZeroMQ Property Language
 
     # Decode ZPL to a HASH:
     my $data = decode_zpl( $zpl_text );
+
     # Encode a HASH to ZPL text:
     my $zpl = encode_zpl( $data );
+
+    # From a shell; examine the Perl representation of a ZPL document:
+    sh$ zpl_to_pl my_config.zpl
 
 # DESCRIPTION
 
@@ -98,7 +102,9 @@ Encoding skips empty lists (`ARRAY` references).
 
 # SEE ALSO
 
-[Text::ZPL::Stream](https://metacpan.org/pod/Text::ZPL::Stream)
+The [Text::ZPL::Stream](https://metacpan.org/pod/Text::ZPL::Stream) module for processing ZPL piecemeal.
+
+The bundled [zpl\_to\_pl](https://metacpan.org/pod/zpl_to_pl) script for examining parsed ZPL.
 
 # AUTHOR
 
