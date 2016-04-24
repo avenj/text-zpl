@@ -334,7 +334,9 @@ Encoding skips empty lists (C<ARRAY> references).
 
 =head1 SEE ALSO
 
-L<Text::ZPL::Stream>
+The L<Text::ZPL::Stream> module for processing ZPL piecemeal.
+
+The bundled L<zpl_to_pl> script for examining parsed ZPL.
 
 =head1 AUTHOR
 
