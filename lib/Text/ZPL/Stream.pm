@@ -33,8 +33,7 @@ sub new {
 
 sub max_buffer_size {
   defined $_[0]->[BUF_MAX] ?
-    $_[0]->[BUF_MAX]
-    : ($_[0]->[BUF_MAX] = 0)
+    $_[0]->[BUF_MAX] : ( $_[0]->[BUF_MAX] = 0 )
 }
 
 
