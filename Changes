@@ -1,5 +1,15 @@
 Revision history for Perl module Text-ZPL
 
+0.003001 2016-06-27
+
+  - Add 'zpl_to_pl' command line utility
+
+  - Improved error message regarding existing properties
+
+  - Various optimizations
+
+  - Packaging changes; use cpanfile dependency management
+
 0.002002 2014-10-08
 
   - Fix a test case on perl-5.8/5.10
