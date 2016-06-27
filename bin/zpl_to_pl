@@ -1,6 +1,9 @@
 #!perl
+
 use strict; use warnings;
+
 use Text::ZPL;
 use Data::Dumper::Concise;
+
 my $str = join '', <>;
 print Dumper decode_zpl $str
